@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  username  String    @unique
+  password  String
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+}
+
+model Session {
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Kpi {
+  id                Int   @id @default(autoincrement())
+  mrr               Float @default(0)
+  mrrGoal           Float @default(20000)
+  activeSubscribers Int   @default(0)
+}
+
+model MrrHistory {
+  id    Int    @id @default(autoincrement())
+  month String @unique
+  value Float
+}
+
+model Client {
+  id              Int               @id @default(autoincrement())
+  name            String
+  integrationDate String
+  adAccountId     String
+  totalSpent      Float             @default(0)
+  phone           String
+  affiliates      AffiliateClient[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+}
+
+model Affiliate {
+  id                    Int               @id @default(autoincrement())
+  name                  String
+  iban                  String
+  monthlyPayoutOverride Float?
+  clients               AffiliateClient[]
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+}
+
+model AffiliateClient {
+  affiliateId Int
+  clientId    Int
+  affiliate   Affiliate @relation(fields: [affiliateId], references: [id], onDelete: Cascade)
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@id([affiliateId, clientId])
+}
+
+model ClientActivity {
+  id     Int    @id @default(autoincrement())
+  month  String @unique
+  gained Int    @default(0)
+  lost   Int    @default(0)
+}

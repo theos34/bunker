@@ -260,6 +260,74 @@ td.actions-cell {
     gap: 0.5rem;
 }
 
+/* Login Styles */
+.login-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.login-card {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.login-card h1 {
+    font-family: var(--font-family-heading);
+    font-size: 1.75rem;
+    text-align: center;
+    margin-bottom: 2rem;
+    color: white;
+}
+
+.login-error {
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid var(--accent-color-2);
+    color: var(--accent-color-2);
+    padding: 0.75rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.btn-full {
+    width: 100%;
+    margin-top: 0.5rem;
+}
+
+/* Loading Styles */
+.loading-container {
+    min-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
@@ -480,7 +548,7 @@ td.actions-cell {
 }
 
 .checkbox-item input[type="checkbox"]:checked::after {
-    content: '✔';
+    content: '\2714';
     position: absolute;
     color: white;
     font-size: 0.8em;
@@ -592,5 +660,8 @@ td.actions-cell {
     }
     .dashboard-grid {
         grid-template-columns: 1fr;
+    }
+    .login-card {
+        padding: 1.5rem;
     }
 }

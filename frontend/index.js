@@ -1,70 +1,201 @@
-/* native web build: plain JS */
+/* Dashboard Bunker AD - API Version */
 
-const STORAGE_KEY = 'bunkerAdDashboardState';
+const API_BASE = '/api';
 
 // --- STATE MANAGEMENT ---
-// A single object to hold the entire state of the application. Will be overwritten by localStorage if available.
 let state = {
+    isAuthenticated: false,
+    isLoading: true,
     kpis: {
-        mrr: 12540,
+        mrr: 0,
         mrrGoal: 20000,
-        activeSubscribers: 284,
+        activeSubscribers: 0,
     },
-    mrrHistory: [
-        { month: '2023-01', value: 5200 },
-        { month: '2023-02', value: 5800 },
-        { month: '2023-03', value: 6500 },
-        { month: '2023-04', value: 7100 },
-        { month: '2023-05', value: 8200 },
-        { month: '2023-06', value: 8900 },
-        { month: '2023-07', value: 9500 },
-        { month: '2023-08', value: 10100 },
-        { month: '2023-09', value: 10800 },
-        { month: '2023-10', value: 11500 },
-        { month: '2023-11', value: 12100 },
-        { month: '2023-12', value: 12540 },
-    ],
-    clients: [
-        { id: 1, name: 'Client Alpha', integrationDate: '2023-01-15', adAccountId: 'act_12345', totalSpent: 12000, phone: '0612345678' },
-        { id: 2, name: 'Client Beta', integrationDate: '2023-03-22', adAccountId: 'act_67890', totalSpent: 8500, phone: '0687654321' },
-        { id: 3, name: 'Client Gamma', integrationDate: '2023-05-10', adAccountId: 'act_54321', totalSpent: 25000, phone: '0601020304' },
-    ],
-    clientActivity: [
-        { month: '2023-10', gained: 22, lost: 5 },
-        { month: '2023-11', gained: 18, lost: 8 },
-        { month: '2023-12', gained: 25, lost: 6 },
-    ],
-    affiliates: [
-        { id: 1, name: 'John Doe', referred: ['Client Alpha'], iban: 'FR76******************123', monthlyPayoutOverride: null },
-        { id: 2, name: 'Jane Smith', referred: ['Client Beta', 'Client Gamma'], iban: 'FR76******************456', monthlyPayoutOverride: 1000 },
-    ],
+    mrrHistory: [],
+    clients: [],
+    clientActivity: [],
+    affiliates: [],
     ui: {
         mrrTimeRange: '12',
         modal: {
             isOpen: false,
-            type: null, // 'kpis', 'mrrHistory', 'client', 'affiliate', 'payout', 'confirmDelete', 'clientActivity'
+            type: null,
             data: null,
         }
     }
 };
 
-// --- LOCAL STORAGE FUNCTIONS ---
-const saveState = () => {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch (error) {
-        console.error('Failed to save state to localStorage:', error);
-    }
+// --- API FUNCTIONS ---
+const api = {
+    async fetch(endpoint, options = {}) {
+        const response = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                ...options.headers,
+            },
+        });
+
+        if (response.status === 401) {
+            state.isAuthenticated = false;
+            renderApp();
+            throw new Error('Unauthorized');
+        }
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'API Error');
+        }
+
+        return response.json();
+    },
+
+    // Auth
+    async login(username, password) {
+        return this.fetch('/auth/login', {
+            method: 'POST',
+            body: JSON.stringify({ username, password }),
+        });
+    },
+
+    async logout() {
+        return this.fetch('/auth/logout', { method: 'POST' });
+    },
+
+    async checkAuth() {
+        return this.fetch('/auth/me');
+    },
+
+    // KPIs
+    async getKpis() {
+        return this.fetch('/kpis');
+    },
+
+    async updateKpis(data) {
+        return this.fetch('/kpis', {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    // Clients
+    async getClients() {
+        return this.fetch('/clients');
+    },
+
+    async createClient(data) {
+        return this.fetch('/clients', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async updateClient(id, data) {
+        return this.fetch(`/clients/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteClient(id) {
+        return this.fetch(`/clients/${id}`, { method: 'DELETE' });
+    },
+
+    // Affiliates
+    async getAffiliates() {
+        return this.fetch('/affiliates');
+    },
+
+    async createAffiliate(data) {
+        return this.fetch('/affiliates', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async updateAffiliate(id, data) {
+        return this.fetch(`/affiliates/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteAffiliate(id) {
+        return this.fetch(`/affiliates/${id}`, { method: 'DELETE' });
+    },
+
+    // MRR History
+    async getMrrHistory() {
+        return this.fetch('/mrr-history');
+    },
+
+    async createMrrHistory(data) {
+        return this.fetch('/mrr-history', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async updateMrrHistory(id, data) {
+        return this.fetch(`/mrr-history/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteMrrHistory(id) {
+        return this.fetch(`/mrr-history/${id}`, { method: 'DELETE' });
+    },
+
+    // Client Activity
+    async getClientActivity() {
+        return this.fetch('/client-activity');
+    },
+
+    async createClientActivity(data) {
+        return this.fetch('/client-activity', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async updateClientActivity(id, data) {
+        return this.fetch(`/client-activity/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(data),
+        });
+    },
+
+    async deleteClientActivity(id) {
+        return this.fetch(`/client-activity/${id}`, { method: 'DELETE' });
+    },
 };
 
-const loadState = () => {
+// --- DATA LOADING ---
+const loadAllData = async () => {
     try {
-        const savedState = localStorage.getItem(STORAGE_KEY);
-        if (savedState) {
-            state = JSON.parse(savedState);
-        }
+        const [kpis, clients, affiliates, mrrHistory, clientActivity] = await Promise.all([
+            api.getKpis(),
+            api.getClients(),
+            api.getAffiliates(),
+            api.getMrrHistory(),
+            api.getClientActivity(),
+        ]);
+
+        state.kpis = {
+            mrr: kpis.mrr,
+            mrrGoal: kpis.mrrGoal,
+            activeSubscribers: kpis.activeSubscribers,
+        };
+        state.clients = clients;
+        state.affiliates = affiliates;
+        state.mrrHistory = mrrHistory;
+        state.clientActivity = clientActivity;
+        state.isLoading = false;
     } catch (error) {
-        console.error('Failed to load state from localStorage:', error);
+        console.error('Failed to load data:', error);
+        state.isLoading = false;
     }
 };
 
@@ -92,6 +223,21 @@ const deleteIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="1
 
 // --- RENDER FUNCTIONS ---
 const renderApp = () => {
+    if (!state.isAuthenticated) {
+        renderLoginPage();
+        return;
+    }
+
+    if (state.isLoading) {
+        app.innerHTML = `
+            <div class="loading-container">
+                <div class="loading-spinner"></div>
+                <p>Chargement...</p>
+            </div>
+        `;
+        return;
+    }
+
     const { mrr, mrrGoal, activeSubscribers } = state.kpis;
     const mrrPercentage = Math.min((mrr / mrrGoal) * 100, 100);
 
@@ -105,6 +251,7 @@ const renderApp = () => {
     app.innerHTML = `
         <header>
             <h1>Dashboard Bunker AD</h1>
+            <button class="btn btn-secondary" id="logout-btn">Déconnexion</button>
         </header>
         <main class="dashboard-grid">
             <div class="card kpi-card">
@@ -151,18 +298,43 @@ const renderApp = () => {
         </main>
         ${state.ui.modal.isOpen ? renderModal() : ''}
     `;
+
+    document.getElementById('logout-btn')?.addEventListener('click', handleLogout);
     if (state.ui.modal.isOpen) attachModalEventListeners();
     attachChartEventListeners();
 };
 
+const renderLoginPage = () => {
+    app.innerHTML = `
+        <div class="login-container">
+            <div class="login-card">
+                <h1>Dashboard Bunker AD</h1>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Nom d'utilisateur</label>
+                        <input type="text" id="username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Mot de passe</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    <div id="login-error" class="login-error" style="display: none;"></div>
+                    <button type="submit" class="btn btn-primary btn-full">Se connecter</button>
+                </form>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+};
+
 const renderMrrChart = () => {
-    // Chart rendering logic remains here
     const dataPoints = state.mrrHistory.slice(-state.ui.mrrTimeRange);
     if (dataPoints.length < 2) return `<div class="card chart-card"><div class="card-body">Données insuffisantes pour afficher le graphique.</div></div>`;
 
     const labels = dataPoints.map(d => new Date(d.month).toLocaleString('fr-FR', { month: 'short' }));
     const values = dataPoints.map(d => d.value);
-    
+
     const svgWidth = 1000;
     const svgHeight = 300;
     const margin = { top: 20, right: 20, bottom: 30, left: 50 };
@@ -171,13 +343,13 @@ const renderMrrChart = () => {
 
     const maxVal = Math.max(...values);
     const minVal = 0;
-    
+
     const toSvgX = (v, i) => margin.left + (i / (values.length - 1)) * width;
     const toSvgY = v => margin.top + height - ((v - minVal) / (maxVal - minVal)) * height;
 
     const path = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${toSvgX(v, i)} ${toSvgY(v)}`).join(' ');
     const areaPath = `${path} V ${toSvgY(minVal)} L ${toSvgX(values[0], 0)} ${toSvgY(minVal)} Z`;
-    
+
     const xGridLines = labels.map((_, i) => `<line x1="${toSvgX(0,i)}" y1="${margin.top}" x2="${toSvgX(0,i)}" y2="${height + margin.top}" stroke="${i === 0 || i === labels.length - 1 ? 'transparent' : 'var(--border-color)'}" stroke-dasharray="2,3" />`).join('');
     const yGridLines = Array.from({length: 5}).map((_, i) => {
         const y = margin.top + (i/4) * height;
@@ -197,9 +369,9 @@ const renderMrrChart = () => {
                 <h3>Évolution du MRR</h3>
                 <div class="card-header-actions">
                      <select class="time-range-selector" id="time-range-selector" value="${state.ui.mrrTimeRange}">
-                        <option value="3">3 derniers mois</option>
-                        <option value="6">6 derniers mois</option>
-                        <option value="12">12 derniers mois</option>
+                        <option value="3" ${state.ui.mrrTimeRange === '3' ? 'selected' : ''}>3 derniers mois</option>
+                        <option value="6" ${state.ui.mrrTimeRange === '6' ? 'selected' : ''}>6 derniers mois</option>
+                        <option value="12" ${state.ui.mrrTimeRange === '12' ? 'selected' : ''}>12 derniers mois</option>
                     </select>
                     <button class="icon-btn" data-modal-type="mrrHistory">${editIcon}</button>
                 </div>
@@ -218,7 +390,7 @@ const renderMrrChart = () => {
                     </defs>
                     <path class="area" d="${areaPath}" fill="url(#areaGradient)"></path>
                     <path class="line mrr" d="${path}"></path>
-                    
+
                     <!-- Interactive elements -->
                     <g class="tooltip" style="visibility: hidden;">
                         <line class="hover-line" y1="${margin.top}" y2="${height + margin.top}"></line>
@@ -255,7 +427,7 @@ const renderClientTable = () => `
                                 <td>${c.adAccountId}</td>
                                 <td>${formatCurrency(c.totalSpent)}</td>
                                 <td class="actions-cell">
-                                    <button class="icon-btn" data-modal-type="client" data-modal-data='${JSON.stringify(c)}'>${editIcon}</button>
+                                    <button class="icon-btn" data-modal-type="client" data-modal-data='${JSON.stringify(c).replace(/'/g, "&#39;")}'>${editIcon}</button>
                                     <button class="icon-btn delete-btn" data-type="client" data-id="${c.id}">${deleteIcon}</button>
                                 </td>
                             </tr>
@@ -313,7 +485,7 @@ const renderAffiliateTable = () => `
                                 <td>${a.name}</td>
                                 <td>${a.referred.join(', ')}</td>
                                 <td class="actions-cell">
-                                    <button class="icon-btn" data-modal-type="affiliate" data-modal-data='${JSON.stringify(a)}'>${editIcon}</button>
+                                    <button class="icon-btn" data-modal-type="affiliate" data-modal-data='${JSON.stringify(a).replace(/'/g, "&#39;")}'>${editIcon}</button>
                                     <button class="icon-btn delete-btn" data-type="affiliate" data-id="${a.id}">${deleteIcon}</button>
                                 </td>
                             </tr>
@@ -341,7 +513,7 @@ const renderPayoutTable = () => `
                                 <td>${a.iban}</td>
                                 <td>${formatCurrency(getAffiliatePayout(a))}</td>
                                 <td class="actions-cell">
-                                     <button class="icon-btn" data-modal-type="payout" data-modal-data='${JSON.stringify(a)}'>${editIcon}</button>
+                                     <button class="icon-btn" data-modal-type="payout" data-modal-data='${JSON.stringify(a).replace(/'/g, "&#39;")}'>${editIcon}</button>
                                 </td>
                             </tr>
                         `).join('')}
@@ -381,10 +553,10 @@ const renderModal = () => {
             body = `
                 <h4>Entrées existantes</h4>
                 <div id="mrr-history-entries">
-                ${state.mrrHistory.map((entry, index) => `
-                    <div class="form-group-inline" data-index="${index}">
+                ${state.mrrHistory.map((entry) => `
+                    <div class="form-group-inline" data-id="${entry.id}">
                         <label>${new Date(entry.month + '-02').toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}</label>
-                        <input type="number" name="mrr-value-${index}" value="${entry.value}">
+                        <input type="number" name="mrr-value-${entry.id}" value="${entry.value}">
                     </div>
                 `).join('')}
                 </div>
@@ -399,11 +571,11 @@ const renderModal = () => {
             body = `
                 <h4>Entrées existantes</h4>
                 <div id="client-activity-entries">
-                ${state.clientActivity.map((entry, index) => `
-                    <div class="form-group-inline activity-entry" data-index="${index}">
+                ${state.clientActivity.map((entry) => `
+                    <div class="form-group-inline activity-entry" data-id="${entry.id}">
                         <label>${new Date(entry.month + '-02').toLocaleString('fr-FR', { month: 'long', year: 'numeric' })}</label>
-                        <input type="number" name="gained-${index}" value="${entry.gained}" placeholder="Gagnés">
-                        <input type="number" name="lost-${index}" value="${entry.lost}" placeholder="Perdus">
+                        <input type="number" name="gained-${entry.id}" value="${entry.gained}" placeholder="Gagnés">
+                        <input type="number" name="lost-${entry.id}" value="${entry.lost}" placeholder="Perdus">
                     </div>
                 `).join('')}
                 </div>
@@ -461,7 +633,7 @@ const renderModal = () => {
                 </div>
                 <div class="form-group">
                     <label>Clients Parrainés</label>
-                    <div class="checkbox-list-container">${clientCheckboxes}</div>
+                    <div class="checkbox-list-container">${clientCheckboxes || '<p style="color: var(--text-muted-color);">Aucun client disponible</p>'}</div>
                 </div>
             `;
             break;
@@ -517,6 +689,36 @@ const renderModal = () => {
 
 
 // --- EVENT LISTENERS & HANDLERS ---
+const handleLogin = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const username = form.username.value;
+    const password = form.password.value;
+    const errorDiv = document.getElementById('login-error');
+
+    try {
+        await api.login(username, password);
+        state.isAuthenticated = true;
+        state.isLoading = true;
+        renderApp();
+        await loadAllData();
+        renderApp();
+    } catch (error) {
+        errorDiv.textContent = 'Identifiants incorrects';
+        errorDiv.style.display = 'block';
+    }
+};
+
+const handleLogout = async () => {
+    try {
+        await api.logout();
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+    state.isAuthenticated = false;
+    renderApp();
+};
+
 const openModal = (type, data) => {
     state.ui.modal = { isOpen: true, type, data };
     renderApp();
@@ -527,114 +729,122 @@ const closeModal = () => {
     renderApp();
 };
 
-const handleFormSubmit = (form) => {
+const handleFormSubmit = async (form) => {
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
-    
-    switch (data.formType) {
-        case 'kpis':
-            state.kpis.mrr = parseFloat(data.mrr);
-            state.kpis.mrrGoal = parseFloat(data.mrrGoal);
-            state.kpis.activeSubscribers = parseInt(data.activeSubscribers);
-            break;
-        case 'mrrHistory':
-            // Update existing
-            state.mrrHistory.forEach((entry, index) => {
-                entry.value = parseFloat(formData.get(`mrr-value-${index}`));
-            });
-            // Add new entries
-            const newMonths = formData.getAll('new-mrr-month');
-            const newValues = formData.getAll('new-mrr-value');
-            newMonths.forEach((month, i) => {
-                if (month && newValues[i]) {
-                    state.mrrHistory.push({ month: month, value: parseFloat(newValues[i])});
-                }
-            });
-            state.mrrHistory.sort((a,b) => new Date(a.month) - new Date(b.month));
-            break;
-        case 'clientActivity':
-            // Update existing
-            state.clientActivity.forEach((entry, index) => {
-                entry.gained = parseInt(formData.get(`gained-${index}`), 10);
-                entry.lost = parseInt(formData.get(`lost-${index}`), 10);
-            });
-            // Add new entries
-            const newActivityMonths = formData.getAll('new-activity-month');
-            const newGained = formData.getAll('new-activity-gained');
-            const newLost = formData.getAll('new-activity-lost');
-            newActivityMonths.forEach((month, i) => {
-                if (month && newGained[i] && newLost[i]) {
-                    state.clientActivity.push({
-                        month: month,
-                        gained: parseInt(newGained[i], 10),
-                        lost: parseInt(newLost[i], 10)
-                    });
-                }
-            });
-            state.clientActivity.sort((a,b) => new Date(a.month) - new Date(b.month));
-            break;
-        case 'client':
-            const clientData = {
-                id: data.id ? parseInt(data.id) : Date.now(),
-                name: data.name,
-                phone: data.phone,
-                integrationDate: data.integrationDate,
-                adAccountId: data.adAccountId,
-                totalSpent: parseFloat(data.totalSpent)
-            };
-            if (data.id) {
-                const index = state.clients.findIndex(c => c.id === clientData.id);
-                state.clients[index] = clientData;
-            } else {
-                state.clients.push(clientData);
-            }
-            break;
-        case 'affiliate':
-             const affiliateData = {
-                id: data.id ? parseInt(data.id) : Date.now(),
-                name: data.name,
-                iban: data.iban,
-                referred: formData.getAll('referred'),
-                monthlyPayoutOverride: data.id ? state.affiliates.find(a=>a.id === parseInt(data.id)).monthlyPayoutOverride : null
-            };
-            if (data.id) {
-                const index = state.affiliates.findIndex(a => a.id === affiliateData.id);
-                state.affiliates[index] = affiliateData;
-            } else {
-                state.affiliates.push(affiliateData);
-            }
-            break;
-        case 'payout':
-            const payoutId = parseInt(data.id);
-            const affiliateIndex = state.affiliates.findIndex(a => a.id === payoutId);
-            if (affiliateIndex !== -1) {
-                state.affiliates[affiliateIndex].iban = data.iban;
-                state.affiliates[affiliateIndex].monthlyPayoutOverride = data.monthlyPayoutOverride ? parseFloat(data.monthlyPayoutOverride) : null;
-            }
-            break;
-    }
 
-    closeModal();
-    saveState();
+    try {
+        switch (data.formType) {
+            case 'kpis':
+                await api.updateKpis({
+                    mrr: parseFloat(data.mrr),
+                    mrrGoal: parseFloat(data.mrrGoal),
+                    activeSubscribers: parseInt(data.activeSubscribers),
+                });
+                break;
+            case 'mrrHistory':
+                // Update existing entries
+                for (const entry of state.mrrHistory) {
+                    const newValue = parseFloat(formData.get(`mrr-value-${entry.id}`));
+                    if (newValue !== entry.value) {
+                        await api.updateMrrHistory(entry.id, { value: newValue });
+                    }
+                }
+                // Add new entries
+                const newMonths = formData.getAll('new-mrr-month');
+                const newValues = formData.getAll('new-mrr-value');
+                for (let i = 0; i < newMonths.length; i++) {
+                    if (newMonths[i] && newValues[i]) {
+                        await api.createMrrHistory({
+                            month: newMonths[i],
+                            value: parseFloat(newValues[i]),
+                        });
+                    }
+                }
+                break;
+            case 'clientActivity':
+                // Update existing entries
+                for (const entry of state.clientActivity) {
+                    const newGained = parseInt(formData.get(`gained-${entry.id}`), 10);
+                    const newLost = parseInt(formData.get(`lost-${entry.id}`), 10);
+                    if (newGained !== entry.gained || newLost !== entry.lost) {
+                        await api.updateClientActivity(entry.id, { gained: newGained, lost: newLost });
+                    }
+                }
+                // Add new entries
+                const newActivityMonths = formData.getAll('new-activity-month');
+                const newGainedList = formData.getAll('new-activity-gained');
+                const newLostList = formData.getAll('new-activity-lost');
+                for (let i = 0; i < newActivityMonths.length; i++) {
+                    if (newActivityMonths[i] && newGainedList[i] && newLostList[i]) {
+                        await api.createClientActivity({
+                            month: newActivityMonths[i],
+                            gained: parseInt(newGainedList[i], 10),
+                            lost: parseInt(newLostList[i], 10),
+                        });
+                    }
+                }
+                break;
+            case 'client':
+                const clientData = {
+                    name: data.name,
+                    phone: data.phone,
+                    integrationDate: data.integrationDate,
+                    adAccountId: data.adAccountId,
+                    totalSpent: parseFloat(data.totalSpent),
+                };
+                if (data.id) {
+                    await api.updateClient(parseInt(data.id), clientData);
+                } else {
+                    await api.createClient(clientData);
+                }
+                break;
+            case 'affiliate':
+                const affiliateData = {
+                    name: data.name,
+                    iban: data.iban,
+                    referred: formData.getAll('referred'),
+                };
+                if (data.id) {
+                    const existingAffiliate = state.affiliates.find(a => a.id === parseInt(data.id));
+                    affiliateData.monthlyPayoutOverride = existingAffiliate?.monthlyPayoutOverride;
+                    await api.updateAffiliate(parseInt(data.id), affiliateData);
+                } else {
+                    await api.createAffiliate(affiliateData);
+                }
+                break;
+            case 'payout':
+                await api.updateAffiliate(parseInt(data.id), {
+                    iban: data.iban,
+                    monthlyPayoutOverride: data.monthlyPayoutOverride ? parseFloat(data.monthlyPayoutOverride) : null,
+                });
+                break;
+        }
+
+        closeModal();
+        await loadAllData();
+        renderApp();
+    } catch (error) {
+        console.error('Form submit error:', error);
+        alert('Erreur lors de la sauvegarde: ' + error.message);
+    }
 };
 
-const handleDelete = (type, id) => {
-    if (type === 'client') {
-        const clientToDelete = state.clients.find(c => c.id === id);
-        if (clientToDelete) {
-            // Remove the client from any affiliate's referred list
-            state.affiliates.forEach(affiliate => {
-                affiliate.referred = affiliate.referred.filter(name => name !== clientToDelete.name);
-            });
+const handleDelete = async (type, id) => {
+    try {
+        if (type === 'client') {
+            await api.deleteClient(id);
+        } else if (type === 'affiliate') {
+            await api.deleteAffiliate(id);
         }
-        // Now, filter out the client
-        state.clients = state.clients.filter(c => c.id !== id);
-    } else if (type === 'affiliate') {
-        state.affiliates = state.affiliates.filter(a => a.id !== id);
+
+        closeModal();
+        await loadAllData();
+        renderApp();
+    } catch (error) {
+        console.error('Delete error:', error);
+        alert('Erreur lors de la suppression: ' + error.message);
     }
-    
-    closeModal();
-    saveState();
 };
 
 
@@ -648,7 +858,7 @@ const attachModalEventListeners = () => {
         e.preventDefault();
         handleFormSubmit(e.target);
     });
-    
+
     // Specific listeners for MRR history modal
     document.getElementById('add-mrr-entry-btn')?.addEventListener('click', () => {
         const container = document.getElementById('new-mrr-entries-container');
@@ -662,7 +872,7 @@ const attachModalEventListeners = () => {
         container.appendChild(entryDiv);
         entryDiv.querySelector('.remove-btn').addEventListener('click', () => entryDiv.remove());
     });
-    
+
     // Specific listeners for Client Activity modal
     document.getElementById('add-client-activity-btn')?.addEventListener('click', () => {
         const container = document.getElementById('new-client-activity-container');
@@ -691,12 +901,14 @@ const attachChartEventListeners = () => {
     if (!chart) return;
 
     const tooltip = chart.querySelector('.tooltip');
+    if (!tooltip) return;
+
     const hoverLine = tooltip.querySelector('.hover-line');
     const hoverCircle = tooltip.querySelector('.hover-circle');
     const tooltipBg = tooltip.querySelector('.tooltip-bg');
     const tooltipText = tooltip.querySelector('.tooltip-text');
     const tooltipValue = tooltip.querySelector('.tooltip-value');
-    
+
     const dataPoints = state.mrrHistory.slice(-state.ui.mrrTimeRange);
 
     chart.addEventListener('mousemove', (e) => {
@@ -722,22 +934,22 @@ const attachChartEventListeners = () => {
         const chartHeight = svgHeight - chartMargin.top - chartMargin.bottom;
         const maxVal = Math.max(...dataPoints.map(p => p.value));
         const minVal = 0;
-    
+
         const toSvgX = (i) => chartMargin.left + (i / (dataPoints.length - 1)) * chartWidth;
         const toSvgY = v => chartMargin.top + chartHeight - ((v - minVal) / (maxVal - minVal)) * chartHeight;
 
         const x = toSvgX(index);
         const y = toSvgY(d.value);
-        
+
         tooltip.style.visibility = 'visible';
         hoverLine.setAttribute('x1', x);
         hoverLine.setAttribute('x2', x);
         hoverCircle.setAttribute('cx', x);
         hoverCircle.setAttribute('cy', y);
-        
+
         tooltipText.textContent = new Date(d.month + '-02').toLocaleString('fr-FR', {month: 'long', year: 'numeric'});
         tooltipValue.textContent = formatCurrency(d.value);
-        
+
         const tooltipX = x > svgWidth / 2 ? x - 130 : x + 10;
         tooltipBg.setAttribute('x', tooltipX);
         tooltipBg.setAttribute('y', chartMargin.top);
@@ -752,9 +964,24 @@ const attachChartEventListeners = () => {
     });
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadState();
-    renderApp();
+// --- INITIALIZATION ---
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check if user is already authenticated
+    try {
+        const authResult = await api.checkAuth();
+        if (authResult.user) {
+            state.isAuthenticated = true;
+            renderApp();
+            await loadAllData();
+            renderApp();
+        } else {
+            state.isLoading = false;
+            renderApp();
+        }
+    } catch (error) {
+        state.isLoading = false;
+        renderApp();
+    }
 
     document.body.addEventListener('click', (event) => {
         const target = event.target;
@@ -775,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     openModal('confirmDelete', { type, id, name: item.name });
                 }
             }
-            return; // Stop processing this click event
+            return;
         }
 
         // Handle modal trigger clicks
@@ -784,7 +1011,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const type = modalButton.dataset.modalType;
             const data = modalButton.dataset.modalData ? JSON.parse(modalButton.dataset.modalData) : {};
             openModal(type, data);
-            return; // Stop processing this click event
+            return;
         }
     });
 
@@ -793,7 +1020,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (target instanceof HTMLSelectElement && target.id === 'time-range-selector') {
             state.ui.mrrTimeRange = target.value;
             renderApp();
-            saveState(); // Save state on time range change
         }
     });
 });
